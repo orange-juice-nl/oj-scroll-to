@@ -1,101 +1,69 @@
+"use strict";
 var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-import "oj-event";
-import Component from "oj-component";
-var timings = {
-    easeInOutQuad: function (t, b, c, d) {
-        t /= d / 2;
-        if (t < 1)
-            return c / 2 * t * t + b;
-        t--;
-        return -c / 2 * (t * (t - 2) - 1) + b;
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+require("oj-event");
+var oj_eventaggregator_1 = require("oj-eventaggregator");
+exports.getRootElements = function (selector, loaded) {
+    if (loaded === void 0) { loaded = false; }
+    var elements = Array.from(document.querySelectorAll(selector));
+    if (loaded) {
+        elements = elements.filter(function (x) { return x.getAttribute("data-loaded") !== null; });
+        elements.forEach(function (x) { return x.setAttribute("data-loaded", "loaded"); });
     }
+    return elements;
 };
 var ScrollTo = /** @class */ (function (_super) {
     __extends(ScrollTo, _super);
     function ScrollTo(root, options) {
-        var _this = _super.call(this, "scroll-to", root, options) || this;
-        _this._body = document.body;
-        _this._html = document.documentElement;
+        var _this = _super.call(this) || this;
+        _this.root = root;
+        _this.options = options;
+        _this.root.on([
+            "click.scroll-to",
+            "touchend.scroll-to"
+        ], function (e) { return _this.scroll(); });
         return _this;
     }
-    ScrollTo.mount = function (options) {
-        return Component.getRoots("[data-scroll-to]:not([data-scroll-to=\"loaded\"])").map(function (x) { return new ScrollTo(x, options); });
-    };
-    ScrollTo.scrollTo = function (selector, options) {
-        var st = new ScrollTo(document.querySelector(selector), options);
-        st.scrollTo();
-        return st;
-    };
-    ScrollTo.prototype.initialize = function (selector) {
-        var _this = this;
-        this.selector = selector;
-        if (!this.timing)
-            this.timing = timings.easeInOutQuad;
-        if (!this.duration)
-            this.duration = 250;
-        this.root.on(["click.scrollTo." + this.id, "touchend.scrollTo." + this.id], function (e) { return _this.scrollTo(); });
-        window.on("wheel.scrollTo." + this.id, function (e) {
-            if (_this.timer !== null) {
-                clearTimeout(_this.timer);
-                _this.timer = null;
-            }
-        });
-    };
-    ScrollTo.prototype.scrollTo = function () {
-        var _this = this;
-        var target = document.querySelector(this.selector);
-        if (!target)
-            return;
-        var container = this.container ? document.querySelector(this.container) : this.getScrollContainer(target);
-        if (!container)
-            return;
-        this.from = container.scrollTop;
-        this.to = target.offsetTop + (this.offset || 0);
-        if (this.from === this.to)
-            return;
-        this.emit("change", { done: false, target: target, container: container });
-        this.smoothScroll(container, function () { return _this.emit("change", { done: true, target: target, container: container }); });
-    };
-    ScrollTo.prototype.getScrollContainer = function (target) {
-        var container = target;
-        while (container && container.clientHeight === container.scrollHeight) {
-            container = container.parentNode;
-        }
-        ;
-        return container;
-    };
-    ScrollTo.prototype.smoothScroll = function (container, cb, t, i) {
-        var _this = this;
-        if (t === void 0) { t = 0; }
-        if (i === void 0) { i = 20; }
-        if (container === this._body || container === this._html) {
-            this._body.scrollTop = this.timing(t, this.from, this.to - this.from, this.duration);
-            this._html.scrollTop = this.timing(t, this.from, this.to - this.from, this.duration);
-        }
-        else {
-            container.scrollTop = this.timing(t, this.from, this.to - this.from, this.duration);
-        }
-        if (t < this.duration) {
-            t += i;
-            if (this.timer !== null)
-                clearTimeout(this.timer);
-            this.timer = setTimeout(function () { return _this.smoothScroll(container, cb, t, i); }, i);
-        }
-        else {
-            cb();
-        }
+    ScrollTo.prototype.scroll = function () {
+        var t = document.querySelector(this.options.selector);
+        if (!t)
+            console.error("No element found for selector " + this.options.selector);
+        t.scrollIntoView(this.options);
+        this.emit("change");
     };
     ScrollTo.prototype.unmount = function () {
+        this.root.off([
+            "click.scroll-to",
+            "touchend.scroll-to"
+        ]);
     };
     return ScrollTo;
-}(Component));
-export default ScrollTo;
+}(oj_eventaggregator_1.EventAggregator));
+exports.default = ScrollTo;
+exports.mount = function (options) {
+    return exports.getRootElements("[data-scroll-to]", true)
+        .map(function (x) { return new ScrollTo(x, __assign(__assign({}, options), { selector: x.getAttribute("data-scroll-to") })); });
+};
